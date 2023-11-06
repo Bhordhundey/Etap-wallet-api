@@ -1,0 +1,133 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+enum Role {
+   USER
+   ADMIN
+}
+
+enum TransactionCategory {
+   TRANSFER
+   WALLET_FUNDING
+}
+
+enum TransactionType {
+   CREDIT
+   DEBIT
+}
+
+enum Currency {
+   NGN
+   USD
+   GHS
+   ZAR
+   KES
+}
+
+enum TransactionStatus {
+   PENDING
+   COMPLETED
+   FAILED
+}
+
+enum TransactionApprovalStatus {
+   PENDING
+   APPROVED
+   DECLINED
+}
+
+enum PaymentProvider {
+   PAYSTACK
+   KUDA
+   FLUTTERWAVE
+}
+
+model User {
+   id             String    @id @default(cuid())
+   first_name      String    @map("first_name")
+   last_name       String?   @map("last_name")
+   email          String    @unique()
+   phone          String    @unique()
+   password       String
+   transaction_pin String?
+
+   is_active        Boolean @default(true)
+   is_deleted       Boolean @default(false)
+   is_verified Boolean @default(false)
+
+   wallets Wallet[]
+
+   role Role @default(USER)
+
+   transactions Transaction[]
+
+   createdAt      DateTime  @default(now())
+   updatedAt      DateTime? @updatedAt
+
+   @@map("users")
+}
+
+model Wallet {
+   id        String   @id @default(cuid())
+   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+   user_id   String
+   balance  Float    @default(0.0)
+   currency Currency 
+   transactions Transaction[]
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   @@map("wallets")
+}
+
+model Transaction {
+   id        String   @id @default(cuid())
+   user      User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+   user_id    String
+   reference String
+   amount    Float          @default(0.0)
+   currency  Currency
+   meta      Json?
+   payment_provider   PaymentProvider @default(PAYSTACK)
+
+   category        TransactionCategory
+   description String               @default("Transaction")
+   type        TransactionType?
+   status      TransactionStatus    @default(PENDING)
+
+   wallet   Wallet? @relation(fields: [wallet_id], references: [id])
+   wallet_id String?
+
+   pending_source_transaction_approval PendingTransactionApproval? @relation("source")
+   pending_destination_transaction_approval   PendingTransactionApproval? @relation("dest")
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   @@map("transactions")
+}
+
+model PendingTransactionApproval {
+   id        String   @id @default(cuid())
+
+   source_transaction   Transaction @relation("source", fields: [source_transaction_id], references: [id], onDelete: Cascade)
+   source_transaction_id String      @unique
+
+   destination_transaction   Transaction @relation("dest", fields: [destination_transaction_id], references: [id], onDelete: Cascade)
+   destination_transaction_id String      @unique
+
+   status TransactionApprovalStatus @default(PENDING)
+
+   amount Float @default(0.0)
+
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+
+   @@map("pendingTransactionApprovals")
+}
