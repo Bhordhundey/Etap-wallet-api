@@ -27,9 +27,6 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Running with docker
-
-
 <!-- ## Test
 
 ```bash
